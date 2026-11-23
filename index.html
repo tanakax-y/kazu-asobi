@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>かずあそび</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#060a14;
+    --glow:#39ffb0;
+    --amber:#ffd166;
+    --claude:#D97757;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:radial-gradient(1200px 800px at 50% -200px, #1a2342, var(--bg));
+    color:#eef2ff; font-family:'Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic UI',system-ui,sans-serif;
+    touch-action:manipulation; overflow-x:hidden;
+    display:flex; flex-direction:column; min-height:100dvh;
+  }
+  button{font-family:inherit; touch-action:manipulation; border:none; cursor:pointer;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 8px) 14px 4px;
+  }
+  h1{margin:0; font-size:clamp(20px,4vmin,30px); letter-spacing:.1em;}
+  h1 small{font-size:.55em; color:#8fa3d0; letter-spacing:0;}
+  .hright{display:flex; gap:10px; align-items:center;}
+  .badge{
+    background:#141c33; color:#fff; border-radius:999px;
+    padding:8px 16px; font-size:clamp(16px,3vmin,24px); font-weight:bold;
+    border:2px solid #2a3a66;
+  }
+  #celeBadge{background:linear-gradient(160deg,#3a2b06,#1d1502); border-color:#a37b1c; color:var(--amber);}
+  #celeBadge.pop{animation:pop .5s ease;}
+  @keyframes pop{30%{transform:scale(1.45) rotate(-6deg);}60%{transform:scale(.92);}}
+
+  nav{display:flex; gap:8px; padding:8px 14px;}
+  .tab{
+    flex:1; padding:12px 4px; border-radius:14px; font-size:clamp(15px,2.6vmin,22px); font-weight:bold;
+    background:#141c33; color:#8fa3d0; border:2px solid #2a3a66;
+  }
+  .tab.on{background:linear-gradient(160deg,#2b4bb3,#1c2f77); color:#fff; border-color:#5b7dff;}
+
+  main{flex:1; display:flex; flex-direction:column; padding:4px 14px 0;}
+  .mode{display:none; flex-direction:column; gap:10px; flex:1;}
+  .mode.on{display:flex;}
+
+  /* ---------- デジタル表示 ---------- */
+  .lcd{
+    position:relative; background:var(--panel); border-radius:18px;
+    border:3px solid #22304f; box-shadow:inset 0 0 30px #000, 0 4px 18px rgba(0,0,0,.5);
+    height:clamp(110px,24vmin,190px);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    padding:0 12px;
+  }
+  .lcd .ghost,.lcd .num{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:ui-monospace,'SF Mono','Cascadia Mono',Consolas,monospace;
+    font-weight:700; letter-spacing:.04em; white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  .lcd .ghost{color:rgba(140,170,255,.07);}
+  .lcd .num{color:var(--glow); text-shadow:0 0 14px var(--glow), 0 0 40px color-mix(in srgb,var(--glow) 45%, transparent);}
+  .yomi{
+    min-height:2.6em; text-align:center; color:var(--amber);
+    font-size:clamp(14px,3vmin,24px); font-weight:bold; line-height:1.35;
+    padding:0 6px; word-break:break-all;
+  }
+  .yomi .u{color:#63d8ff; font-weight:900; font-size:1.15em; padding:0 2px;
+    text-shadow:0 0 10px rgba(99,216,255,.6);}
+  .yomi .mixedLine{color:#f4f7ff; font-size:1.08em;}
+  .yomi .kanjiLine{opacity:.95;}
+
+  /* ---------- カウンター ---------- */
+  .updown{display:flex; gap:12px;}
+  .updown .huge{flex:1;}
+  .huge{
+    flex:0 0 auto; border-radius:22px; font-weight:900;
+    font-size:clamp(34px,9vmin,64px); height:clamp(84px,15vmin,130px);
+    color:#fff; box-shadow:0 6px 0 rgba(0,0,0,.45);
+  }
+  .huge:active{transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.45);}
+  .up{background:linear-gradient(160deg,#ff9d3c,#e5630c);}
+  .down{background:linear-gradient(160deg,#4aa8ff,#1c5ed6);}
+  .go{background:linear-gradient(160deg,#39d98a,#0e9f5a); font-size:clamp(24px,6vmin,44px);}
+  .go.running{background:linear-gradient(160deg,#ff5d73,#d61c3c);}
+
+  .steps{display:flex; flex-wrap:wrap; gap:8px; justify-content:center;}
+  .steps .lbl{width:100%; text-align:center; color:#8fa3d0; font-size:clamp(12px,2.2vmin,18px); font-weight:bold;}
+  .chip{
+    min-width:58px; padding:10px 12px; border-radius:999px; font-size:clamp(16px,3vmin,24px); font-weight:bold;
+    background:#141c33; color:#aab8e0; border:2px solid #2a3a66;
+  }
+  .chip.on{color:#04120a; border-color:transparent; background:var(--chipc,#39ffb0); box-shadow:0 0 14px var(--chipc,#39ffb0);}
+
+  .xrow{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; padding-bottom:4px;}
+  .xrow button{
+    background:#1b2542; color:#dbe4ff; border:2px solid #33447a; border-radius:14px;
+    padding:12px 16px; font-size:clamp(15px,2.8vmin,22px); font-weight:bold;
+  }
+  .xrow button:active{background:#2b3a66;}
+
+  /* ---------- スロット ---------- */
+  .slotWrap{display:flex; gap:12px; justify-content:center; padding-top:4px;}
+  .reelBox{display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .reel{
+    width:clamp(76px,18vmin,120px); height:clamp(100px,22vmin,150px);
+    background:var(--panel); border:3px solid #22304f; border-radius:14px;
+    overflow:hidden; box-shadow:inset 0 0 24px #000;
+    position:relative;
+  }
+  .reel::after{content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(#0009, transparent 30%, transparent 70%, #0009);}
+  .strip{will-change:transform;}
+  .cell{
+    height:clamp(100px,22vmin,150px); display:flex; align-items:center; justify-content:center;
+    font-family:ui-monospace,'SF Mono',Consolas,monospace; font-weight:700;
+    font-size:clamp(64px,15vmin,108px); color:var(--glow);
+    text-shadow:0 0 14px var(--glow);
+  }
+  .stopBtn{
+    width:100%; padding:12px 0; border-radius:12px; font-weight:bold; font-size:clamp(14px,2.6vmin,20px);
+    background:linear-gradient(160deg,#ff5d73,#c2183a); color:#fff; box-shadow:0 4px 0 rgba(0,0,0,.4);
+  }
+  .stopBtn:disabled{background:#232c48; color:#5a6a95; box-shadow:none;}
+  .stopBtn:not(:disabled):active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.4);}
+
+  /* ---------- タコ ---------- */
+  #octoZone{position:relative; height:118px; overflow:visible; flex-shrink:0;
+    padding-bottom:env(safe-area-inset-bottom);}
+  .octo{position:absolute; bottom:6px; left:0; will-change:transform;}
+  .octo svg{display:block; overflow:visible;}
+  .octo.jump .body{animation:oJump .9s ease;}
+  .octo.gold svg{animation:goldGlow 1.6s ease-in-out infinite alternate;}
+  @keyframes goldGlow{
+    from{filter:drop-shadow(0 0 4px #ffd166);}
+    to{filter:drop-shadow(0 0 16px #ffec9e);}
+  }
+  .octo.rainbow svg{animation:rainbowShift 2.6s linear infinite;}
+  @keyframes rainbowShift{
+    from{filter:hue-rotate(0deg) drop-shadow(0 0 12px rgba(255,255,255,.7));}
+    to{filter:hue-rotate(360deg) drop-shadow(0 0 12px rgba(255,255,255,.7));}
+  }
+  body.fever .lcd .num, body.fever .cell{animation:hueSpin 1.2s linear infinite;}
+  @keyframes hueSpin{to{filter:hue-rotate(360deg);}}
+  .octo.spawn svg{animation:spawnIn .6s cubic-bezier(.2,1.6,.4,1);}
+  @keyframes spawnIn{from{transform:scale(0);}}
+  @keyframes oJump{
+    25%{transform:translateY(-46px) rotate(-14deg);}
+    55%{transform:translateY(-30px) rotate(14deg);}
+    80%{transform:translateY(-4px);}
+  }
+  .lg{transform-origin:50% 0; animation:wig 1s ease-in-out infinite alternate;}
+  .lg:nth-child(2n){animation-delay:.25s;}
+  .lg:nth-child(3n){animation-delay:.5s;}
+  @keyframes wig{from{transform:rotate(-9deg);}to{transform:rotate(9deg);}}
+  #bubble{
+    position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+    background:#fff; color:#222; font-weight:bold; font-size:15px; white-space:nowrap;
+    padding:7px 12px; border-radius:14px; opacity:0; transition:opacity .25s;
+    pointer-events:none; z-index:5;
+  }
+  #bubble::after{content:''; position:absolute; top:100%; left:50%; margin-left:-7px;
+    border:7px solid transparent; border-top-color:#fff;}
+  #bubble.show{opacity:1;}
+
+  /* ---------- 紙ふぶき ---------- */
+  .cf{position:fixed; top:-24px; left:var(--l); width:var(--s); height:var(--s);
+    background:var(--c); border-radius:var(--r); z-index:60; pointer-events:none;
+    animation:fall var(--d) cubic-bezier(.2,.5,.6,1) forwards;}
+  @keyframes fall{to{transform:translate(var(--dx),108vh) rotate(760deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>かずあそび <small>🔢</small></h1>
+  <div class="hright">
+    <button id="celeBadge">🎉 <span id="celeNum">0</span></button>
+    <button id="sndBtn" class="badge">🔊</button>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button class="tab on" data-tab="counter">カウンター</button>
+  <button class="tab" data-tab="random">ランダム</button>
+  <button class="tab" data-tab="slot">スロット</button>
+</nav>
+
+<main>
+  <!-- カウンター -->
+  <section id="counter" class="mode on">
+    <div class="lcd" id="cLcd"><span class="ghost"></span><span class="num"></span></div>
+    <div class="yomi" id="cYomi"></div>
+    <div class="updown">
+      <button class="huge down" id="downBtn">−</button>
+      <button class="huge up" id="upBtn">＋</button>
+    </div>
+    <div class="steps" id="steps"><span class="lbl">いくつずつ？（ながおしで こうそく！）</span></div>
+    <div class="xrow">
+      <button id="d10">÷10</button>
+      <button id="x10">×10</button>
+      <button id="resetBtn">0 にもどす</button>
+      <button id="cSpeak">🔈 よみあげ</button>
+    </div>
+  </section>
+
+  <!-- ランダム -->
+  <section id="random" class="mode">
+    <div class="lcd" id="rLcd"><span class="ghost"></span><span class="num"></span></div>
+    <div class="yomi" id="rYomi"></div>
+    <div class="steps" id="digitSel"><span class="lbl">なんけたの かず？</span></div>
+    <button class="huge go" id="rndBtn">スタート！</button>
+    <div class="xrow"><button id="rSpeak">🔈 よみあげ</button></div>
+  </section>
+
+  <!-- スロット -->
+  <section id="slot" class="mode">
+    <div class="slotWrap" id="slotWrap"></div>
+    <div class="yomi" id="sYomi"></div>
+    <button class="huge go" id="spinBtn">まわす！</button>
+  </section>
+</main>
+
+<div id="octoZone"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const MAX = 10n ** 72n - 1n;   // 無量大数のけたまで
+
+/* ============ サウンド ============ */
+let soundOn = true, audio = null;
+function ac(){
+  if(!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  if(audio.state === 'suspended') audio.resume();
+  return audio;
+}
+function beep(f, d = 0.06, type = 'square', g = 0.045, when = 0){
+  if(!soundOn) return;
+  try{
+    const a = ac(), o = a.createOscillator(), v = a.createGain();
+    o.type = type; o.frequency.value = f;
+    o.connect(v); v.connect(a.destination);
+    const t = a.currentTime + when;
+    v.gain.setValueAtTime(g, t);
+    v.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.start(t); o.stop(t + d + 0.02);
+  }catch(e){}
+}
+function fanfare(){
+  [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, .14, 'triangle', .07, i * .09));
+}
+function popSound(){ beep(880, .08, 'triangle', .06); beep(1320, .1, 'triangle', .05, .07); }
+document.addEventListener('pointerdown', () => { if(soundOn) ac(); }, { once: true });
+
+$('#sndBtn').addEventListener('click', () => {
+  soundOn = !soundOn;
+  $('#sndBtn').textContent = soundOn ? '🔊' : '🔇';
+  if(soundOn) beep(660, .08);
+});
+
+/* ============ 漢数字よみ ============ */
+const UNITS = ['','万','億','兆','京','垓','𥝱','穣','溝','澗','正','載','極','恒河沙','阿僧祇','那由他','不可思議','無量大数'];
+const DIG = ['','一','二','三','四','五','六','七','八','九'];
+function yomi4(n){
+  let s = '';
+  const th = Math.floor(n / 1000), h = Math.floor(n / 100) % 10, t = Math.floor(n / 10) % 10, o = n % 10;
+  if(th) s += (th > 1 ? DIG[th] : '') + '千';
+  if(h) s += (h > 1 ? DIG[h] : '') + '百';
+  if(t) s += (t > 1 ? DIG[t] : '') + '十';
+  if(o) s += DIG[o];
+  return s;
+}
+function kanji(v){
+  if(v === 0n) return 'ゼロ';
+  let neg = v < 0n; if(neg) v = -v;
+  let s = v.toString();
+  if(s.length > UNITS.length * 4) return 'むげんだい！！';
+  const parts = [];
+  let gi = 0;
+  while(s.length){
+    const g = s.slice(-4); s = s.slice(0, -4);
+    const n = +g;
+    if(n) parts.unshift(yomi4(n) + UNITS[gi]);
+    gi++;
+  }
+  return (neg ? 'マイナス ' : '') + parts.join('');
+}
+/* 単位（万・億・兆…）を水色で強調したHTML版 */
+function yomiHTML(v){
+  if(v === 0n) return 'ゼロ';
+  let neg = v < 0n; if(neg) v = -v;
+  let s = v.toString();
+  if(s.length > UNITS.length * 4) return 'むげんだい！！';
+  const parts = [];
+  let gi = 0;
+  while(s.length){
+    const g = s.slice(-4); s = s.slice(0, -4);
+    const n = +g;
+    if(n) parts.unshift(yomi4(n) + (UNITS[gi] ? `<span class="u">${UNITS[gi]}</span>` : ''));
+    gi++;
+  }
+  return (neg ? 'マイナス ' : '') + parts.join('');
+}
+/* 「281万4739」のような 数字＋単位 のまぜ書き */
+function mixedHTML(v){
+  let neg = v < 0n; if(neg) v = -v;
+  let s = v.toString();
+  const parts = [];
+  let gi = 0;
+  while(s.length){
+    const g = s.slice(-4); s = s.slice(0, -4);
+    const n = +g;
+    if(n) parts.unshift(n + (UNITS[gi] ? `<span class="u">${UNITS[gi]}</span>` : ''));
+    gi++;
+  }
+  return (neg ? '−' : '') + parts.join('');
+}
+function yomiBlock(v){
+  const a = v < 0n ? -v : v;
+  let h = '';
+  if(a >= 10000n) h += `<div class="mixedLine">${mixedHTML(v)}</div>`;
+  h += `<div class="kanjiLine">${yomiHTML(v)}</div>`;
+  return h;
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP'; u.rate = 0.95;
+  speechSynthesis.speak(u);
+}
+
+/* ============ 表示ユーティリティ ============ */
+function fmt(v){
+  const neg = v < 0n;
+  let s = (neg ? -v : v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-' : '') + s;
+}
+function lcdSet(lcd, str){
+  const n = Math.max(str.length, 1);
+  lcd.querySelector('.num').textContent = str;
+  lcd.querySelector('.ghost').textContent = str.replace(/\d/g, '8');
+  const size = Math.min(140 / n, 17);
+  lcd.querySelector('.num').style.fontSize = size + 'vmin';
+  lcd.querySelector('.ghost').style.fontSize = size + 'vmin';
+}
+
+/* ============ おいわいカウンター ============ */
+let celeCount = parseInt(localStorage.getItem('kazu-cele') || '0', 10);
+const celeNum = $('#celeNum');
+celeNum.textContent = celeCount;
+function addCele(n = 1){
+  celeCount += n;
+  localStorage.setItem('kazu-cele', celeCount);
+  celeNum.textContent = celeCount;
+  const b = $('#celeBadge');
+  b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  syncOctos(true);   // おいわいの数だけ タコのなかまが ふえる（30かいごとに きんいろ）
+}
+$('#celeBadge').addEventListener('click', () => {
+  octoSay(`おいわい ${celeCount} かい！`); octoJump();
+});
+
+/* ============ 紙ふぶき ============ */
+const CF_COLORS = ['#ff5d73','#ffd166','#39d98a','#4aa8ff','#c792ea','#ff9d3c'];
+function confetti(n = 30){
+  for(let i = 0; i < n; i++){
+    const d = document.createElement('div');
+    d.className = 'cf';
+    d.style.setProperty('--l', Math.random() * 100 + 'vw');
+    d.style.setProperty('--c', CF_COLORS[i % CF_COLORS.length]);
+    d.style.setProperty('--s', (8 + Math.random() * 10) + 'px');
+    d.style.setProperty('--r', Math.random() < .5 ? '50%' : '3px');
+    d.style.setProperty('--d', (1.4 + Math.random() * 1.4) + 's');
+    d.style.setProperty('--dx', (Math.random() * 160 - 80) + 'px');
+    document.body.appendChild(d);
+    d.addEventListener('animationend', () => d.remove());
+  }
+}
+
+/* ============ レインボーフィーバー ============ */
+let feverT = null;
+function fever(dur = 8000){
+  document.body.classList.add('fever');
+  clearTimeout(feverT);
+  feverT = setTimeout(() => document.body.classList.remove('fever'), dur);
+}
+
+/* ============ おいわい ============ */
+let lastCele = 0;
+function celebrate(msg, big){
+  const now = performance.now();
+  if(now - lastCele < 700) return;
+  lastCele = now;
+  addCele();
+  octoSay(msg);
+  if(big){ confetti(70); fanfare(); octoJump(); }
+  else{ confetti(22); popSound(); }
+}
+
+/* ============ タブ ============ */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  document.querySelectorAll('.mode').forEach(m => m.classList.toggle('on', m.id === t.dataset.tab));
+  beep(520, .05, 'sine');
+}));
+
+/* ============ カウンター ============ */
+let val = 0n, step = 1n;
+const cLcd = $('#cLcd'), cYomi = $('#cYomi');
+function clampV(v){ return v > MAX ? MAX : v < -MAX ? -MAX : v; }
+function renderCounter(){
+  lcdSet(cLcd, fmt(val));
+  cYomi.innerHTML = yomiBlock(val);
+}
+function checkMilestone(fast){
+  if(val === 0n) return;
+  const a = val < 0n ? -val : val;
+  const s = a.toString();
+  if(/^10+$/.test(s) && s.length >= 4) celebrate('けたアップ！ ' + kanji(a) + '！', true);
+  else if(s.length >= 3 && /^(\d)\1+$/.test(s)) celebrate('ぞろ目 ' + s + '！', true);
+  else if(a % 1000n === 0n) celebrate('キリばん！', true);
+  else if(!fast && a % 100n === 0n) celebrate('100 のくぎり！', false);
+}
+let tickAlt = 0;
+function change(dir, fast){
+  val = clampV(val + dir * step);
+  renderCounter();
+  if(!fast || (tickAlt++ % 3 === 0)) beep(dir > 0n ? 740 : 520, .03, 'square', .03);
+  checkMilestone(fast);
+}
+function holdable(btn, fn){
+  let raf = null, t0 = 0, last = 0, acc = 0, held = false;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try{ btn.setPointerCapture(e.pointerId); }catch(x){}
+    fn(false);
+    held = true; t0 = last = performance.now(); acc = 0;
+    const loop = now => {
+      if(!held) return;
+      const dt = (now - last) / 1000; last = now;
+      const el = (now - t0) / 1000;
+      if(el > 0.35){
+        const rate = Math.min(6 + Math.pow(el - 0.35, 2) * 26, 90);
+        acc += rate * dt;
+        while(acc >= 1){ acc -= 1; fn(true); }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+  });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev =>
+    btn.addEventListener(ev, () => { held = false; cancelAnimationFrame(raf); }));
+}
+holdable($('#upBtn'), fast => change(1n, fast));
+holdable($('#downBtn'), fast => change(-1n, fast));
+
+const STEP_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 1000];
+const stepsEl = $('#steps');
+STEP_LIST.forEach((n, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip' + (n === 1 ? ' on' : '');
+  b.textContent = n;
+  const hue = (i * 33 + 140) % 360;
+  b.style.setProperty('--chipc', `hsl(${hue} 95% 62%)`);
+  b.addEventListener('click', () => {
+    step = BigInt(n);
+    stepsEl.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+    document.documentElement.style.setProperty('--glow', `hsl(${hue} 95% 62%)`);
+    beep(600 + i * 40, .05, 'sine');
+    octoSay(n + ' ずつ！');
+  });
+  stepsEl.appendChild(b);
+});
+
+$('#x10').addEventListener('click', () => {
+  val = clampV(val * 10n); renderCounter(); beep(980, .07); checkMilestone(false);
+});
+$('#d10').addEventListener('click', () => {
+  val = val / 10n; renderCounter(); beep(440, .07);
+});
+$('#resetBtn').addEventListener('click', () => { val = 0n; renderCounter(); beep(330, .09); });
+$('#cSpeak').addEventListener('click', () => speak(kanji(val)));
+cLcd.addEventListener('click', () => speak(kanji(val)));
+renderCounter();
+
+/* ============ ランダム ============ */
+const rLcd = $('#rLcd'), rYomi = $('#rYomi'), rndBtn = $('#rndBtn');
+let rndDigits = 3, rndTimer = null, rndVal = 0n;
+const DIGIT_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 16];
+const digitSel = $('#digitSel');
+DIGIT_LIST.forEach((n, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip' + (n === 3 ? ' on' : '');
+  b.textContent = n;
+  b.style.setProperty('--chipc', `hsl(${(i * 30 + 30) % 360} 95% 62%)`);
+  b.addEventListener('click', () => {
+    rndDigits = n;
+    digitSel.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+    beep(600 + i * 40, .05, 'sine');
+  });
+  digitSel.appendChild(b);
+});
+function randomNum(){
+  let s = String(1 + Math.floor(Math.random() * 9));
+  if(rndDigits === 1) s = String(Math.floor(Math.random() * 10));
+  for(let i = 1; i < rndDigits; i++) s += Math.floor(Math.random() * 10);
+  return BigInt(s);
+}
+rndBtn.addEventListener('click', () => {
+  if(rndTimer){                                   // ストップ
+    clearInterval(rndTimer); rndTimer = null;
+    rndBtn.textContent = 'スタート！'; rndBtn.classList.remove('running');
+    rYomi.innerHTML = yomiBlock(rndVal);
+    const s = rndVal.toString();
+    if(s.length >= 2 && /^(\d)\1+$/.test(s)) celebrate('ぞろ目 ' + s + '！！', true);
+    else if(s.length >= 3 && /00$/.test(s)) celebrate('キリばん！', false);
+    else popSound();
+  }else{                                          // スタート
+    rndBtn.textContent = 'ストップ！'; rndBtn.classList.add('running');
+    rYomi.textContent = '';
+    rndTimer = setInterval(() => {
+      rndVal = randomNum();
+      lcdSet(rLcd, fmt(rndVal));
+      if(tickAlt++ % 4 === 0) beep(500 + Math.random() * 700, .02, 'square', .02);
+    }, 45);
+  }
+});
+$('#rSpeak').addEventListener('click', () => speak(kanji(rndVal)));
+rLcd.addEventListener('click', () => speak(kanji(rndVal)));
+lcdSet(rLcd, '?');
+
+/* ============ スロット ============ */
+const slotWrap = $('#slotWrap'), sYomi = $('#sYomi'), spinBtn = $('#spinBtn');
+const REELS = 3;
+const reels = [];
+for(let i = 0; i < REELS; i++){
+  const box = document.createElement('div'); box.className = 'reelBox';
+  const reel = document.createElement('div'); reel.className = 'reel';
+  const strip = document.createElement('div'); strip.className = 'strip';
+  for(let k = 0; k < 30; k++){
+    const c = document.createElement('div'); c.className = 'cell';
+    c.textContent = k % 10;
+    strip.appendChild(c);
+  }
+  reel.appendChild(strip);
+  const stop = document.createElement('button');
+  stop.className = 'stopBtn'; stop.textContent = 'ストップ'; stop.disabled = true;
+  box.appendChild(reel); box.appendChild(stop);
+  slotWrap.appendChild(box);
+  const r = { strip, stop, pos: i * 3 * cellH(), state: 'idle', digit: '?', from: 0, to: 0, t0: 0, dur: 0 };
+  reels.push(r);
+  const stopFn = () => stopReel(r);
+  stop.addEventListener('click', stopFn);
+  reel.addEventListener('click', stopFn);
+}
+function cellH(){ return reels.length && reels[0].strip.firstChild ? reels[0].strip.firstChild.offsetHeight : slotWrap.querySelector('.cell').offsetHeight; }
+function renderReel(r){
+  const H = cellH();
+  r.strip.style.transform = `translateY(${-(r.pos % (H * 10))}px)`;
+}
+let slotRaf = null, slotLast = 0, slotTickT = 0;
+function slotLoop(now){
+  const dt = Math.min((now - slotLast) / 1000, .05); slotLast = now;
+  let active = false;
+  const H = cellH();
+  for(const r of reels){
+    if(r.state === 'spin'){ r.pos += 1150 * dt; renderReel(r); active = true; }
+    else if(r.state === 'stopping'){
+      const p = Math.min(1, (now - r.t0) / r.dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      r.pos = r.from + (r.to - r.from) * e;
+      renderReel(r);
+      if(p >= 1){
+        r.state = 'done';
+        r.digit = String(Math.round(r.pos / H) % 10);
+        beep(300, .09, 'square', .06);
+        checkSlotDone();
+      }else active = true;
+    }
+  }
+  if(active){
+    slotTickT += dt;
+    if(slotTickT > .09){ slotTickT = 0; beep(1500 + Math.random() * 500, .015, 'square', .015); }
+    slotRaf = requestAnimationFrame(slotLoop);
+  }else slotRaf = null;
+}
+function ensureSlotLoop(){
+  if(!slotRaf){ slotLast = performance.now(); slotRaf = requestAnimationFrame(slotLoop); }
+}
+function stopReel(r){
+  if(r.state !== 'spin') return;
+  const H = cellH();
+  const target = Math.floor(Math.random() * 10);
+  const cur = Math.ceil(r.pos / H);
+  const steps = ((target - cur) % 10 + 10) % 10;
+  r.from = r.pos;
+  r.to = (cur + 10 + steps) * H;
+  r.t0 = performance.now();
+  r.dur = 550 + Math.random() * 250;
+  r.state = 'stopping';
+  r.stop.disabled = true;
+}
+function checkSlotDone(){
+  if(!reels.every(r => r.state === 'done')) return;
+  const ds = reels.map(r => r.digit);
+  const num = BigInt(ds.join(''));
+  sYomi.innerHTML = ds.join(' ') + '　→　' + yomiHTML(num);
+  if(ds.every(d => d === ds[0])){
+    celebrate('ぞろ目 ' + ds.join('') + '！だいあたり！！', true);
+    confetti(60);
+  }else if(new Set(ds).size < ds.length){
+    octoSay('おしい！'); popSound();
+  }
+  reels.forEach(r => r.state = 'idle');
+  spinBtn.disabled = false;
+}
+spinBtn.addEventListener('click', () => {
+  if(!reels.every(r => r.state === 'idle')) return;
+  sYomi.textContent = '';
+  spinBtn.disabled = true;
+  reels.forEach(r => { r.state = 'spin'; r.stop.disabled = false; });
+  beep(660, .1, 'sawtooth', .04);
+  ensureSlotLoop();
+});
+reels.forEach(renderReel);
+
+/* ============ タコ（おいわいの数だけ ふえる！） ============ */
+const zone = $('#octoZone');
+const MAX_OCTO = 30;
+const octos = [];
+const OCTO_COLORS = {
+  normal:  { body:'#D97757', belly:'#e2825f', leg:'#c05f3f', cheek:'#f0a184', mouth:'#6e3320' },
+  gold:    { body:'#f7c531', belly:'#ffdf7e', leg:'#d9a10e', cheek:'#fff3b8', mouth:'#8a6d00' },
+  rainbow: { body:'#ff6b6b', belly:'#ffa8a8', leg:'#e03131', cheek:'#ffd8d8', mouth:'#7a1f1f' },
+};
+const OCTO_SVG = (w, c, crown) => `<svg viewBox="0 0 120 104" width="${w}" xmlns="http://www.w3.org/2000/svg">
+  <g class="body">
+    <g class="legs" stroke="${c.leg}" stroke-width="9" fill="none" stroke-linecap="round">
+      <path class="lg" d="M32 64 q-8 18 -18 24"/>
+      <path class="lg" d="M44 68 q-4 20 -12 28"/>
+      <path class="lg" d="M56 70 q-1 20 -4 30"/>
+      <path class="lg" d="M64 70 q1 20 4 30"/>
+      <path class="lg" d="M76 68 q4 20 12 28"/>
+      <path class="lg" d="M88 64 q8 18 18 24"/>
+    </g>
+    <ellipse cx="60" cy="40" rx="37" ry="35" fill="${c.body}"/>
+    <ellipse cx="60" cy="47" rx="30" ry="24" fill="${c.belly}"/>
+    ${crown ? '<path d="M42 18 L47 1 L55 11 L60 -3 L65 11 L73 1 L78 18 Z" fill="#ffe27a" stroke="#c9971d" stroke-width="2.5" stroke-linejoin="round"/>' : ''}
+    <ellipse cx="46" cy="38" rx="7" ry="8.5" fill="#fff"/>
+    <circle class="pupil" cx="47.5" cy="40" r="3.4" fill="#26160f"/>
+    <ellipse cx="74" cy="38" rx="7" ry="8.5" fill="#fff"/>
+    <circle class="pupil" cx="75.5" cy="40" r="3.4" fill="#26160f"/>
+    <circle cx="36" cy="50" r="4.5" fill="${c.cheek}" opacity=".8"/>
+    <circle cx="84" cy="50" r="4.5" fill="${c.cheek}" opacity=".8"/>
+    <path d="M52 55 q8 8 16 0" stroke="${c.mouth}" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>`;
+function jump(o){
+  o.el.classList.remove('jump'); void o.el.offsetWidth; o.el.classList.add('jump');
+}
+const PHRASES = ['こんにちは！','かず だいすき！','むりょうたいすう しってる？','ながおしで こうそく！','おいわいで なかまが ふえるよ！','おいわい 30 かいごとに きんいろタコ！','きんいろを 5ひき あつめると…！？'];
+function makeOcto(type){
+  const main = type === 'main', gold = type === 'gold', rainbow = type === 'rainbow';
+  const el = document.createElement('div');
+  el.className = 'octo' + (gold ? ' gold' : '') + (rainbow ? ' rainbow' : '');
+  const size = main ? 96 : rainbow ? 104 : gold ? 84 : 40 + Math.random() * 36;
+  const colors = rainbow ? OCTO_COLORS.rainbow : gold ? OCTO_COLORS.gold : OCTO_COLORS.normal;
+  el.innerHTML = (main ? '<div id="bubble"></div>' : '') + OCTO_SVG(Math.round(size), colors, gold || rainbow);
+  el.style.zIndex = rainbow ? 4 : main ? 3 : gold ? 2 : 1;
+  zone.appendChild(el);
+  const o = {
+    el, size, main, type,
+    x: Math.random() * Math.max(10, zone.clientWidth - size),
+    dir: Math.random() < .5 ? -1 : 1,
+    speed: 30 + Math.random() * 70,
+    next: 0,
+    phase: Math.random() * 10,
+  };
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    jump(o);
+    if(main){
+      popSound();
+      const p = Math.random() < .3 ? `おいわい ${celeCount} かい！` : PHRASES[Math.floor(Math.random() * PHRASES.length)];
+      octoSay(p);
+    }else if(rainbow){
+      confetti(90); fever(6000); octoJump();
+      [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => beep(f, .13, 'triangle', .07, i * .07));
+      octoSay('にじいろパワー！！');
+    }else if(gold){
+      confetti(30);
+      [784, 988, 1319].forEach((f, i) => beep(f, .12, 'triangle', .06, i * .08));
+      octoSay('きんいろタコは ラッキー！');
+    }else{
+      beep(900 + (80 - size) * 12, .09, 'triangle', .06);  // ちいさいほど たかい こえ
+    }
+  });
+  el.classList.add('spawn');
+  setTimeout(() => el.classList.remove('spawn'), 700);
+  octos.push(o);
+  return o;
+}
+const mainOcto = makeOcto('main');
+const bubble = $('#bubble');
+let bubbleT = null;
+function octoSay(text, dur = 1800){
+  bubble.textContent = text;
+  bubble.classList.add('show');
+  clearTimeout(bubbleT);
+  bubbleT = setTimeout(() => bubble.classList.remove('show'), dur);
+}
+function octoJump(){ octos.forEach(jump); }
+const MAX_GOLD = 5;
+const RAINBOW_AT = MAX_GOLD * 30;   // きんいろ5ひき＝150かいで にじいろ こうりん
+function syncOctos(announce){
+  const wantBaby = Math.min(celeCount, MAX_OCTO - 1);
+  while(octos.filter(o => o.type === 'baby').length < wantBaby) makeOcto('baby');
+  const wantGold = Math.min(Math.floor(celeCount / 30), MAX_GOLD);   // 30かいごとに きんいろ
+  let newGold = false;
+  while(octos.filter(o => o.type === 'gold').length < wantGold){
+    makeOcto('gold'); newGold = true;
+  }
+  const wantRainbow = celeCount >= RAINBOW_AT ? 1 : 0;
+  let newRainbow = false;
+  while(octos.filter(o => o.type === 'rainbow').length < wantRainbow){
+    makeOcto('rainbow'); newRainbow = true;
+  }
+  if(!announce) return;
+  if(newRainbow){
+    confetti(160); fanfare(); setTimeout(fanfare, 350);
+    fever(9000); octoJump(); setTimeout(octoJump, 500);
+    setTimeout(() => octoSay('🌈 きんいろ 5ひき たっせい！にじいろタコ こうりん！！', 4200), 60);
+  }else if(newGold){
+    confetti(110); fanfare(); octoJump();
+    setTimeout(() => octoSay('✨ きんいろの タコが あらわれた！！ ✨', 3200), 60);
+  }
+}
+syncOctos();
+let oLast = performance.now();
+function octoLoop(now){
+  const dt = Math.min((now - oLast) / 1000, .05); oLast = now;
+  const zw = zone.clientWidth;
+  for(const o of octos){
+    if(now > o.next){
+      o.next = now + 1500 + Math.random() * 2500;
+      const roll = Math.random();
+      o.speed = roll < .25 ? 0 : 25 + Math.random() * 80;   // ときどき ひとやすみ
+      if(roll > .92) jump(o);
+    }
+    const w = zw - o.size;
+    o.x += o.dir * o.speed * dt;
+    if(o.x < 0){ o.x = 0; o.dir = 1; }
+    if(o.x > w){ o.x = w; o.dir = -1; }
+    const bob = Math.sin(now / 320 + o.phase) * 3;
+    o.el.style.transform = `translate(${o.x}px, ${bob}px) scaleX(${o.dir})`;
+  }
+  bubble.style.transform = `translateX(-50%) scaleX(${mainOcto.dir})`;
+  requestAnimationFrame(octoLoop);
+}
+requestAnimationFrame(octoLoop);
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+</body>
+</html>
